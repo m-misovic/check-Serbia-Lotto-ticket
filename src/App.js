@@ -1,134 +1,83 @@
-import React, { Component } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 import ResultsContainer from "./components/resultsContainer";
 import NumbersRange from "./components/numbersRange";
 import PickedNumbers from "./components/pickedNumbers";
 
-export default class App extends Component {
-  constructor() {
-    super();
-    this.state = {
-      data: "",
-      portalActive: false,
-      numbersRange: [...Array(39).keys()].map((x) => x + 1),
-      pickedNumbers: [],
-      pickedstyle: {
-        border: "solid thin gray",
-        cursor: "default",
-        opacity: "0.3",
-      },
+const App = () => {
+  const [data, setData] = useState(null);
+  const [portalActive, setPortalActive] = useState(false);
+  const [pickedNumbers, setPickedNumbers] = useState([]);
+  const numbersRange = Array.from({ length: 39 }, (_, i) => i + 1);
+  const pickedStyle = {
+    border: "solid thin gray",
+    cursor: "default",
+    opacity: "0.3",
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get("https://loto-proxy.onrender.com/numbers");
+        setData(response.data);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
     };
-  }
+    fetchData();
+  }, []);
 
-  fetchData = () => {
-    let url = `https://cute-plum-badger-belt.cyclic.app/numbers`;
-    (async () => {
-      let response = await fetch(url);
-      let data = await response.json();
-      this.setState({
-        data: data,
-      });
-    })();
+  const togglePortal = () => {
+    setPortalActive(!portalActive);
   };
 
-  toglePortal = () => {
-    this.setState({
-      portalActive: !this.state.portalActive,
-    });
-  };
-
-  pickNumber = (e) => {
-    let value = e.target.innerText;
-    let index = this.state.pickedNumbers.indexOf(value);
-    if (this.state.pickedNumbers.length <= 6 && index === -1) {
-      this.setState((prevState) => ({
-        pickedNumbers: [...prevState.pickedNumbers, value],
-        [value]: true,
-      }));
+  const pickNumber = (number) => {
+    if (pickedNumbers.length <= 6 && !pickedNumbers.includes(number)) {
+      setPickedNumbers((prevPickedNumbers) => [...prevPickedNumbers, number]);
     }
   };
 
-  removeNumber = (e) => {
-    let value = e.target.innerText;
-    this.setState({
-      pickedNumbers: this.state.pickedNumbers.filter(
-        (number) => number !== value
-      ),
-      [value]: false,
-    });
+  const removeNumber = (number) => {
+    setPickedNumbers((prevPickedNumbers) => prevPickedNumbers.filter((num) => num !== number));
   };
 
-  checkMatch = (number) => {
-    if (this.state.data.results[0].numbers.indexOf(number) > -1) {
-      return "span_number matched";
-    } else {
-      return "span_number";
-    }
+  const checkMatch = useCallback(
+    (number) => {
+      const numbers = data?.results?.[0]?.numbers || [];
+      return numbers.includes(number) ? "span_number matched" : "span_number";
+    },
+    [data]
+  );
+
+  const clearPickedNumbers = () => {
+    setPickedNumbers([]);
   };
 
-  clearPickedNumbers = () => {
-    this.state.pickedNumbers.map((number) => {
-      return this.setState(
-        {
-          [number]: false,
-        },
-        () =>
-          this.setState({
-            pickedNumbers: [],
-          })
-      );
-    });
-  };
-
-  componentDidMount() {
-    this.fetchData();
-  }
-
-  render() {
-    return (
-      <div className="main_container">
-        <ResultsContainer data={this.state.data} />
-        <div
-          className={
-            this.state.portalActive ? "played_numbers active" : "played_numbers"
-          }
-        >
-          <div
-            className="check_header"
-            onClick={this.state.data ? this.toglePortal : null}
-          >
-            <i className="fas fa-chevron-up"></i>
-            <p>check your numbers</p>
-          </div>
-          <div className="check_body">
-            <NumbersRange
-              title="choose numbers"
-              spantitle="add"
-              onClick={this.pickNumber}
-              state={this.state}
-            />
-            <PickedNumbers
-              title={"picked numbers"}
-              spantitle="remove"
-              onClick={this.removeNumber}
-              state={this.state}
-              checkMatch={this.checkMatch}
-            />
-            <div
-              className={
-                this.state.pickedNumbers.length > 0
-                  ? "clear_button active"
-                  : "clear_button"
-              }
-            >
-              <i
-                className="fas fa-plus"
-                onClick={this.clearPickedNumbers}
-                title="clear picked numbers"
-              ></i>
-            </div>
+  return (
+    <div className="main_container">
+      <ResultsContainer data={data} />
+      <div className={portalActive ? "played_numbers active" : "played_numbers"}>
+        <div className="check_header" onClick={data ? togglePortal : null}>
+          <i className="fas fa-chevron-up"></i>
+          <p>check your numbers</p>
+        </div>
+        <div className="check_body">
+          <NumbersRange
+            title="choose numbers"
+            spantitle="add"
+            onClick={pickNumber}
+            numbersRange={numbersRange}
+            pickedNumbers={pickedNumbers}
+            pickedStyle={pickedStyle}
+          />
+          <PickedNumbers title="picked numbers" spantitle="remove" onClick={removeNumber} pickedNumbers={pickedNumbers} checkMatch={checkMatch} />
+          <div className={pickedNumbers.length > 0 ? "clear_button active" : "clear_button"}>
+            <i className="fas fa-plus" onClick={clearPickedNumbers} title="clear picked numbers"></i>
           </div>
         </div>
       </div>
-    );
-  }
-}
+    </div>
+  );
+};
+
+export default App;
